@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "TIBA Frontend (Next.js)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 3000,
+      "cwd": "C:/Users/Lenovo/Documents/tiba-v2/tiba-frontend"
+    },
+    {
+      "name": "TIBA Backend (Golang)",
+      "runtimeExecutable": "go",
+      "runtimeArgs": ["run", "./cmd/server/"],
+      "port": 8080,
+      "cwd": "C:/Users/Lenovo/Documents/tiba-v2/tiba-backend"
+    }
+  ]
+}

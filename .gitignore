@@ -1,0 +1,31 @@
+# ── Frontend ──────────────────────────────────────────
+tiba-frontend/node_modules/
+tiba-frontend/.next/
+tiba-frontend/out/
+tiba-frontend/.env
+tiba-frontend/.env.local
+tiba-frontend/.env.production
+tiba-frontend/tsconfig.tsbuildinfo
+
+# ── Backend ───────────────────────────────────────────
+tiba-backend/uploads/
+tiba-backend/*.exe
+tiba-backend/tmp/
+
+# ── Database ──────────────────────────────────────────
+*.dump
+*.sql.bak
+
+# ── Docker ────────────────────────────────────────────
+.env
+.env.local
+.env.production
+
+# ── OS ────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Python ────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo

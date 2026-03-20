@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 40" fill="none">
+  <rect width="120" height="40" rx="8" fill="#003087"/>
+  <text x="12" y="27" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="white">TIBA</text>
+  <path d="M88 8 L96 8 L96 32 L88 32 Z" fill="#E8A020"/>
+  <path d="M100 8 L108 8 L108 32 L100 32 Z" fill="#E8A020" opacity="0.6"/>
+</svg>
