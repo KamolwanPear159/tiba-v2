@@ -17,6 +17,7 @@ const (
 type User struct {
 	ID              string         `db:"id" json:"id"`
 	Email           string         `db:"email" json:"email"`
+	Username        sql.NullString `db:"username" json:"username,omitempty"`
 	PasswordHash    string         `db:"password_hash" json:"-"`
 	Role            UserRole       `db:"role" json:"role"`
 	IsActive        bool           `db:"is_active" json:"is_active"`
@@ -102,6 +103,52 @@ type ForgotPasswordRequest struct {
 type ResetPasswordRequest struct {
 	Token       string `json:"token" validate:"required"`
 	NewPassword string `json:"new_password" validate:"required,min=8"`
+}
+
+// OTP
+type OTPCode struct {
+	ID        string     `db:"id"`
+	Email     string     `db:"email"`
+	Code      string     `db:"code"`
+	Purpose   string     `db:"purpose"`
+	ExpiresAt time.Time  `db:"expires_at"`
+	UsedAt    *time.Time `db:"used_at"`
+	CreatedAt time.Time  `db:"created_at"`
+}
+
+type SendOTPRequest struct {
+	Email   string `json:"email" validate:"required,email"`
+	Purpose string `json:"purpose" validate:"required,oneof=register forgot_password sub_member"`
+}
+
+type VerifyOTPRequest struct {
+	Email   string `json:"email" validate:"required,email"`
+	Code    string `json:"code" validate:"required,len=6"`
+	Purpose string `json:"purpose" validate:"required"`
+}
+
+type MemberRegisterNormalRequest struct {
+	Email     string `json:"email" validate:"required,email"`
+	Password  string `json:"password" validate:"required,min=8"`
+	FirstName string `json:"first_name" validate:"required"`
+	LastName  string `json:"last_name" validate:"required"`
+	Phone     string `json:"phone"`
+	Address   string `json:"address"`
+	OTPCode   string `json:"otp_code" validate:"required,len=6"`
+}
+
+type MemberRegisterAssociationRequest struct {
+	Email      string `json:"email" validate:"required,email"`
+	Password   string `json:"password" validate:"required,min=8"`
+	EntityType string `json:"entity_type" validate:"required,oneof=company individual"`
+	OrgName    string `json:"org_name"`
+	TaxID      string `json:"tax_id"`
+	FirstName  string `json:"first_name"`
+	LastName   string `json:"last_name"`
+	IDCard     string `json:"id_card_number"`
+	Phone      string `json:"phone"`
+	Address    string `json:"address"`
+	OTPCode    string `json:"otp_code" validate:"required,len=6"`
 }
 
 type ChangePasswordRequest struct {

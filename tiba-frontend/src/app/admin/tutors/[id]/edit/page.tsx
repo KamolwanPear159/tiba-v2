@@ -39,7 +39,7 @@ export default function TutorEditPage() {
     mutationFn: (fd: FormData) => adminService.updateTutor(id, fd),
     onSuccess: () => router.push('/admin/tutors'),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    onError: (err: any) => setSubmitError(err?.response?.data?.detail ?? err?.message ?? 'เกิดข้อผิดพลาด'),
+    onError: (err: any) => setSubmitError(err?.response?.data?.error?.message ?? err?.response?.data?.message ?? err?.message ?? 'เกิดข้อผิดพลาด'),
   })
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -62,7 +62,7 @@ export default function PublicFooter() {
           </h4>
           {aboutLinks.map((link) => (
             <Link
-              key={link.href}
+              key={link.label}
               href={link.href}
               style={{ fontFamily: 'var(--font-thai)', fontSize: 16, lineHeight: '20px', color: '#fff', textDecoration: 'none', whiteSpace: 'nowrap' }}
               className="hover:opacity-75 transition-opacity"

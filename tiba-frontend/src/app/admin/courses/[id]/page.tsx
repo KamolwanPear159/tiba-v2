@@ -169,6 +169,31 @@ function CourseInfoTab({ courseId }: { courseId: string }) {
           </a>
         </div>
       )}
+
+      {/* Tutors */}
+      {course.tutors && course.tutors.length > 0 && (
+        <div style={cardStyle}>
+          <p style={{ fontSize: 17, fontWeight: 700, color: '#111827', fontFamily: FONT, marginBottom: 16 }}>ผู้สอน</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+            {course.tutors.map(t => (
+              <div key={t.tutor_id} style={{ display: 'flex', gap: 10, alignItems: 'center', backgroundColor: '#f3f6fb', borderRadius: 10, padding: '10px 16px' }}>
+                {t.photo_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={t.photo_url} alt="" style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                ) : (
+                  <div style={{ width: 40, height: 40, borderRadius: '50%', backgroundColor: '#e8f0fd', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 14, fontWeight: 700, color: '#1f4488', fontFamily: FONT }}>
+                    {t.name.charAt(0)}
+                  </div>
+                )}
+                <div>
+                  <p style={{ fontFamily: FONT, fontSize: 15, fontWeight: 600, color: '#111827', margin: 0 }}>{t.name}</p>
+                  <p style={{ fontFamily: FONT, fontSize: 13, color: '#6b7280', margin: 0 }}>{t.position}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

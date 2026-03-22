@@ -10,20 +10,25 @@ import (
 )
 
 type Config struct {
-	ServerPort      string
-	Env             string
-	DBHost          string
-	DBPort          string
-	DBUser          string
-	DBPassword      string
-	DBName          string
-	DBSSLMode       string
-	JWTSecret       string
-	JWTAccessExpiry time.Duration
+	ServerPort       string
+	Env              string
+	DBHost           string
+	DBPort           string
+	DBUser           string
+	DBPassword       string
+	DBName           string
+	DBSSLMode        string
+	JWTSecret        string
+	JWTAccessExpiry  time.Duration
 	JWTRefreshExpiry time.Duration
-	UploadDir       string
-	MaxFileSize     int64
-	AllowedOrigins  string
+	UploadDir        string
+	MaxFileSize      int64
+	AllowedOrigins   string
+	// SMTP
+	SMTPHost     string
+	SMTPPort     string
+	SMTPEmail    string
+	SMTPPassword string
 }
 
 func Load() *Config {
@@ -60,6 +65,10 @@ func Load() *Config {
 		UploadDir:        getEnv("UPLOAD_DIR", "./uploads"),
 		MaxFileSize:      maxFileSize,
 		AllowedOrigins:   getEnv("ALLOWED_ORIGINS", "http://localhost:3000"),
+		SMTPHost:         getEnv("SMTP_HOST", "smtp.gmail.com"),
+		SMTPPort:         getEnv("SMTP_PORT", "587"),
+		SMTPEmail:        getEnv("SMTP_EMAIL", ""),
+		SMTPPassword:     getEnv("SMTP_PASSWORD", ""),
 	}
 }
 

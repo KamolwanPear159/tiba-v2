@@ -17,6 +17,7 @@ func Setup(
 	courseCtrl *controllers.CourseController,
 	pbCtrl *controllers.PriceBenefitController,
 	enrollCtrl *controllers.EnrollmentController,
+	notifCtrl *controllers.NotificationController,
 ) {
 	// Global middleware
 	router.Use(middleware.Logger())
@@ -30,7 +31,7 @@ func Setup(
 
 	RegisterAuthRoutes(v1, authCtrl)
 	RegisterPublicRoutes(v1, contentCtrl, courseCtrl, pbCtrl)
-	RegisterMemberRoutes(v1, userCtrl, enrollCtrl, cfg)
+	RegisterMemberRoutes(v1, userCtrl, enrollCtrl, assocCtrl, notifCtrl, cfg)
 	RegisterAdminRoutes(v1, userCtrl, assocCtrl, contentCtrl, courseCtrl, pbCtrl, enrollCtrl, cfg)
 
 	// Health check

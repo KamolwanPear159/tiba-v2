@@ -28,7 +28,7 @@ export default function TutorCreatePage() {
     mutationFn: (formData: FormData) => adminService.createTutor(formData),
     onSuccess: () => router.push('/admin/tutors'),
     onError: (err: any) => {
-      const msg = err?.response?.data?.detail ?? err?.message ?? 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง';
+      const msg = err?.response?.data?.error?.message ?? err?.response?.data?.message ?? err?.message ?? 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง';
       setSubmitError(msg);
     },
   });
@@ -55,6 +55,7 @@ export default function TutorCreatePage() {
     const fd = new FormData();
     fd.append('name', form.name.trim());
     fd.append('position', form.position.trim());
+    fd.append('is_active', 'true');
     if (photoFile) fd.append('photo', photoFile);
     createTutor(fd);
   };

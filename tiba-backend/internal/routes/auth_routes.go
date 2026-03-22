@@ -8,7 +8,10 @@ import (
 func RegisterAuthRoutes(rg *gin.RouterGroup, authCtrl *controllers.AuthController) {
 	auth := rg.Group("/auth")
 	{
-		auth.POST("/register", authCtrl.Register)
+		auth.POST("/send-otp", authCtrl.SendOTP)
+		auth.POST("/verify-otp", authCtrl.VerifyOTP)
+		auth.POST("/register/normal", authCtrl.RegisterNormal)
+		auth.POST("/register/association", authCtrl.RegisterAssociation)
 		auth.POST("/login", authCtrl.Login)
 		auth.POST("/refresh", authCtrl.RefreshToken)
 		auth.POST("/logout", authCtrl.Logout)

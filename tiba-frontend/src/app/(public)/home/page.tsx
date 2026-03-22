@@ -780,6 +780,8 @@ export default function HomePage() {
                       status={statuses[i % statuses.length]}
                       daysLeft={3}
                       fallbackThumb={coursesConfig.fallbackThumbs[i % coursesConfig.fallbackThumbs.length]}
+                      instructorName={(course.tutors ?? [])[0]?.name}
+                      instructorAvatars={((course.tutors ?? []) as Array<{ photo_url?: string }>).flatMap(t => t.photo_url ? [t.photo_url] : [])}
                     />
                   ) : (
                     <EmptyCourseCard key={`empty-${i}`} />

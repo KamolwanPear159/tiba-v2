@@ -4,8 +4,10 @@ import React, { useState, useRef, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { ChevronLeft, Plus, Trash2 } from 'lucide-react'
+import { ChevronLeft, Plus, Trash2, Check, Upload } from 'lucide-react'
+import type { CourseDocument } from '@/types'
 import { courseService } from '@/lib/api/services/course.service'
+import { adminService } from '@/lib/api/services/admin.service'
 
 const FONT = 'var(--font-thai)'
 
@@ -64,11 +66,54 @@ function StepIndicator({ current }: { current: 1 | 2 }) {
   )
 }
 
+// ─── Tutor Picker ─────────────────────────────────────────────────────────────
+
+function TutorPicker({ selectedIDs, onChange }: { selectedIDs: string[]; onChange: (ids: string[]) => void }) {
+  const { data } = useQuery({
+    queryKey: ['admin-tutors-picker'],
+    queryFn: () => adminService.getTutors({ page: 1, page_size: 100 }),
+  })
+  const allTutors = data?.data ?? []
+  const seen = new Set<string>()
+  const tutors = allTutors.filter(t => { if (seen.has(t.tutor_id)) return false; seen.add(t.tutor_id); return true })
+  const toggle = (id: string) => onChange(selectedIDs.includes(id) ? selectedIDs.filter(x => x !== id) : [...selectedIDs, id])
+
+  if (tutors.length === 0) {
+    return <p style={{ fontFamily: FONT, fontSize: 14, color: '#9ca3af', margin: 0 }}>ยังไม่มีผู้สอนในระบบ — กรุณาเพิ่มผู้สอนในเมนู &quot;ผู้สอน&quot; ก่อน</p>
+  }
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
+      {tutors.map(t => {
+        const sel = selectedIDs.includes(t.tutor_id)
+        return (
+          <div key={t.tutor_id} onClick={() => toggle(t.tutor_id)} style={{ border: sel ? '2px solid #1f4488' : '1px solid #e5e6f0', borderRadius: 10, padding: '10px 14px', cursor: 'pointer', display: 'flex', gap: 10, alignItems: 'center', backgroundColor: sel ? '#f0f4ff' : '#fff' }}>
+            {t.photo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={t.photo_url} alt="" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+            ) : (
+              <div style={{ width: 36, height: 36, borderRadius: '50%', backgroundColor: '#e8f0fd', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 13, fontWeight: 700, color: '#1f4488', fontFamily: FONT }}>{t.name.charAt(0)}</div>
+            )}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontFamily: FONT, fontSize: 14, fontWeight: 600, color: '#111827', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</p>
+              <p style={{ fontFamily: FONT, fontSize: 12, color: '#6b7280', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.position}</p>
+            </div>
+            {sel && <div style={{ width: 20, height: 20, borderRadius: '50%', backgroundColor: '#1f4488', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Check size={12} color="#fff" strokeWidth={3} /></div>}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function EditCoursePage() {
   const params = useParams()
   const router = useRouter()
   const courseId = params.id as string
   const [step, setStep] = useState<1 | 2>(1)
+  const [selectedTutorIDs, setSelectedTutorIDs] = useState<string[]>([])
+  const [existingDocs, setExistingDocs] = useState<CourseDocument[]>([])
+  const [pendingDocs, setPendingDocs] = useState<{ name: string; file: File }[]>([])
+  const [deletingDocIds, setDeletingDocIds] = useState<Set<string>>(new Set())
 
   const { data: course, isLoading } = useQuery({
     queryKey: ['admin-course', courseId],
@@ -100,7 +145,12 @@ export default function EditCoursePage() {
     setFormat(course.format)
     setOnlineLink(course.online_link ?? '')
     if (course.thumbnail_url) setThumbnailPreview(course.thumbnail_url)
-  }, [course])
+    if (course.tutors && course.tutors.length > 0) {
+      setSelectedTutorIDs(course.tutors.map(t => t.tutor_id))
+    }
+    // Load existing documents
+    courseService.listDocuments(courseId).then(docs => setExistingDocs(docs)).catch(() => {})
+  }, [course, courseId])
 
   const saveMutation = useMutation({
     mutationFn: () => {
@@ -116,7 +166,16 @@ export default function EditCoursePage() {
       if (thumbnail) fd.append('thumbnail', thumbnail)
       return courseService.updateCourse(courseId, fd)
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      await courseService.setCourseTutors(courseId, selectedTutorIDs).catch(() => {})
+      // Delete removed docs
+      for (const id of deletingDocIds) {
+        await courseService.deleteDocument(courseId, id).catch(() => {})
+      }
+      // Upload new docs
+      for (const doc of pendingDocs) {
+        await courseService.addDocument(courseId, doc.name, doc.file).catch(() => {})
+      }
       toast.success('แก้ไขคอร์สสำเร็จ')
       router.push(`/admin/courses/${courseId}`)
     },
@@ -276,8 +335,8 @@ export default function EditCoursePage() {
               <tbody>
                 {scheduleRows.map((row, i) => (
                   <tr key={i}>
-                    <td style={{ padding: '6px 10px' }}><input type="text" value={row.start} onChange={e => { const arr = [...scheduleRows]; arr[i].start = e.target.value; setScheduleRows(arr) }} placeholder="ระบุเวลา" style={{ ...inputStyle, width: 120 }} /></td>
-                    <td style={{ padding: '6px 10px' }}><input type="text" value={row.end} onChange={e => { const arr = [...scheduleRows]; arr[i].end = e.target.value; setScheduleRows(arr) }} placeholder="ระบุเวลา" style={{ ...inputStyle, width: 120 }} /></td>
+                    <td style={{ padding: '6px 10px' }}><input type="time" value={row.start} onChange={e => { const arr = [...scheduleRows]; arr[i].start = e.target.value; setScheduleRows(arr) }} style={{ ...inputStyle, width: 130 }} /></td>
+                    <td style={{ padding: '6px 10px' }}><input type="time" value={row.end} onChange={e => { const arr = [...scheduleRows]; arr[i].end = e.target.value; setScheduleRows(arr) }} style={{ ...inputStyle, width: 130 }} /></td>
                     <td style={{ padding: '6px 10px' }}><input type="text" value={row.activity} onChange={e => { const arr = [...scheduleRows]; arr[i].activity = e.target.value; setScheduleRows(arr) }} placeholder="ระบุกำหนดการ" style={inputStyle} /></td>
                     <td style={{ padding: '6px 10px', width: 40 }}>
                       <button onClick={() => setScheduleRows(scheduleRows.filter((_, idx) => idx !== i))} style={{ width: 32, height: 32, border: 'none', borderRadius: 6, backgroundColor: '#fee2e2', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -292,6 +351,62 @@ export default function EditCoursePage() {
               <Plus size={14} />
               เพิ่มกำหนดการ
             </button>
+          </div>
+
+          {/* Documents */}
+          <div style={cardStyle}>
+            <p style={{ fontSize: 18, fontWeight: 700, color: '#1f4488', marginBottom: 16, fontFamily: FONT }}>เอกสารแนบเพิ่มเติม</p>
+            <label style={{ fontSize: 15, fontWeight: 500, color: '#6b7280', marginBottom: 8, display: 'block', fontFamily: FONT }}>รายการเอกสาร</label>
+            {existingDocs.filter(d => !deletingDocIds.has(d.id)).map((doc, i) => (
+              <div key={doc.id} style={{ display: 'flex', gap: 8, marginBottom: 10, alignItems: 'center' }}>
+                <span style={{ width: 28, textAlign: 'center', fontSize: 15, color: '#6b7280', fontFamily: FONT, flexShrink: 0 }}>{i + 1}</span>
+                <input
+                  type="text"
+                  value={doc.name}
+                  onChange={e => {
+                    setExistingDocs(prev => prev.map(d => d.id === doc.id ? { ...d, name: e.target.value } : d))
+                    courseService.updateDocument(courseId, doc.id, e.target.value).catch(() => {})
+                  }}
+                  style={{ ...inputStyle, flex: 1 }}
+                />
+                <span style={{ fontSize: 13, color: '#6b7280', fontFamily: FONT, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }}>{doc.file_path.split('/').pop()}</span>
+                <button onClick={() => setDeletingDocIds(prev => new Set([...prev, doc.id]))} style={{ width: 36, height: 42, border: 'none', borderRadius: 6, backgroundColor: '#fee2e2', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Trash2 size={15} color="#dc2626" />
+                </button>
+              </div>
+            ))}
+            {pendingDocs.map((doc, i) => (
+              <div key={`new-${i}`} style={{ display: 'flex', gap: 8, marginBottom: 10, alignItems: 'center' }}>
+                <span style={{ width: 28, textAlign: 'center', fontSize: 15, color: '#6b7280', fontFamily: FONT, flexShrink: 0 }}>{existingDocs.filter(d => !deletingDocIds.has(d.id)).length + i + 1}</span>
+                <input
+                  type="text"
+                  value={doc.name}
+                  onChange={e => { const arr = [...pendingDocs]; arr[i] = { ...arr[i], name: e.target.value }; setPendingDocs(arr) }}
+                  style={{ ...inputStyle, flex: 1 }}
+                />
+                <span style={{ fontSize: 13, color: '#6b7280', fontFamily: FONT, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }}>{doc.file.name}</span>
+                <button onClick={() => setPendingDocs(pendingDocs.filter((_, idx) => idx !== i))} style={{ width: 36, height: 42, border: 'none', borderRadius: 6, backgroundColor: '#fee2e2', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Trash2 size={15} color="#dc2626" />
+                </button>
+              </div>
+            ))}
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: '1px solid #1f4488', backgroundColor: '#fff', fontSize: 15, cursor: 'pointer', fontFamily: FONT, color: '#1f4488' }}>
+              <Upload size={14} />
+              อัปโหลดเอกสาร
+              <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip" style={{ display: 'none' }} onChange={e => {
+                const file = e.target.files?.[0]
+                if (file) setPendingDocs(prev => [...prev, { name: file.name.replace(/\.[^.]+$/, ''), file }])
+                e.target.value = ''
+              }} />
+            </label>
+          </div>
+
+          {/* Tutors */}
+          <div style={cardStyle}>
+            <p style={{ fontSize: 18, fontWeight: 700, color: '#1f4488', marginBottom: 16, fontFamily: FONT }}>
+              ผู้สอน <span style={{ fontSize: 13, fontWeight: 400, color: '#9ca3af' }}>(เลือกได้หลายคน)</span>
+            </p>
+            <TutorPicker selectedIDs={selectedTutorIDs} onChange={setSelectedTutorIDs} />
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, paddingBottom: 34 }}>

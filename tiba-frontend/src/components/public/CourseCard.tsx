@@ -66,6 +66,14 @@ interface CourseCardProps {
   fallbackThumb?: string
 }
 
+// Fallbacks cycle through the 4 available course thumbnails
+const COURSE_FALLBACKS = [
+  '/assets/course-thumb-1.png',
+  '/assets/course-thumb-2.png',
+  '/assets/course-thumb-3.png',
+  '/assets/course-thumb-4.png',
+]
+
 export default function CourseCard({
   course,
   status = 'upcoming',
@@ -74,11 +82,21 @@ export default function CourseCard({
   hours,
   instructorName,
   instructorAvatars = [],
-  fallbackThumb = '/images/course-fallback.jpg',
+  fallbackThumb = '/assets/course-thumb-1.png',
 }: CourseCardProps) {
   const isOnsite = course.format === 'onsite'
   const isDual = course.price_type === 'dual'
-  const imgSrc = (course.thumbnail_url ? getImageUrl(course.thumbnail_url) : null) ?? fallbackThumb
+
+  // If thumbnail is a local /assets/ or /uploads/ frontend path → use directly.
+  // If it looks like a backend upload path → build full URL via getImageUrl.
+  const rawThumb = course.thumbnail_url
+  const imgSrc: string = (() => {
+    if (!rawThumb) return fallbackThumb
+    if (rawThumb.startsWith('http://') || rawThumb.startsWith('https://')) return rawThumb
+    if (rawThumb.startsWith('/assets/') || rawThumb.startsWith('/images/')) return rawThumb
+    // backend-relative path (e.g. /uploads/...)
+    return getImageUrl(rawThumb) ?? fallbackThumb
+  })()
 
   return (
     <Link href={`/courses/${course.course_id}`} style={{ textDecoration: 'none', display: 'block' }}>
@@ -189,11 +207,15 @@ export default function CourseCard({
             {/* Overlapping avatars */}
             {instructorAvatars.length > 0 && (
               <div style={{ display: 'flex', alignItems: 'center' }}>
-                {instructorAvatars.slice(0, 4).map((av, i) => (
-                  <div key={i} style={{ width: 32, height: 32, borderRadius: '50%', border: '2px solid #fff', marginRight: i < instructorAvatars.length - 1 ? -4 : 0, zIndex: 5 - i, overflow: 'hidden', flexShrink: 0, position: 'relative', backgroundColor: '#e5e7eb' }}>
-                    <Image src={av} alt="" fill style={{ objectFit: 'cover' }} />
-                  </div>
-                ))}
+                {instructorAvatars.slice(0, 4).map((av, i) => {
+                  // Resolve raw upload paths to full URL
+                  const avatarSrc = av.startsWith('http') || av.startsWith('/assets') ? av : (getImageUrl(av) ?? av)
+                  return (
+                    <div key={i} style={{ width: 32, height: 32, borderRadius: '50%', border: '2px solid #fff', marginRight: i < instructorAvatars.length - 1 ? -4 : 0, zIndex: 5 - i, overflow: 'hidden', flexShrink: 0, position: 'relative', backgroundColor: '#e5e7eb' }}>
+                      <Image src={avatarSrc} alt="" fill style={{ objectFit: 'cover' }} unoptimized />
+                    </div>
+                  )
+                })}
               </div>
             )}
             {instructorAvatars.length === 0 && (

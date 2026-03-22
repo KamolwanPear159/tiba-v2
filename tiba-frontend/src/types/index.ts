@@ -55,8 +55,15 @@ export interface Course {
   price_general: number
   price_association?: number
   thumbnail_url?: string
+  total_hours?: number
   is_published: boolean
   sessions_count?: number
+  // Enriched from next upcoming session (public list only)
+  next_training_start?: string
+  next_training_end?: string
+  next_enrollment_start?: string
+  next_enrollment_end?: string
+  tutors?: CourseTutor[]
   created_at: string
   updated_at: string
 }
@@ -329,12 +336,30 @@ export interface MemberCompany {
 
 // ─── Tutors ───────────────────────────────────────────────────────────────────
 
+export interface CourseTutor {
+  tutor_id: string
+  course_id: string
+  name: string
+  position: string
+  photo_url?: string
+  display_order?: number
+}
+
 export interface Tutor {
   tutor_id: string
   name: string
   position: string
   photo_url?: string
   is_active: boolean
+  created_at: string
+}
+
+export interface CourseDocument {
+  id: string
+  course_id: string
+  name: string
+  file_path: string
+  display_order: number
   created_at: string
 }
 

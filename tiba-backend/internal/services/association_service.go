@@ -86,3 +86,8 @@ func (s *AssociationService) UpdateSubUserRequest(ctx context.Context, id, statu
 	}
 	return s.assocRepo.UpdateSubUserStatus(ctx, id, status, reviewerID, note)
 }
+
+// RequestSubMember creates an invitation for a sub-member under the calling association main user.
+func (s *AssociationService) RequestSubMember(ctx context.Context, mainUserID, invitedEmail, permission string) error {
+	return s.assocRepo.RequestSubMember(ctx, mainUserID, invitedEmail, permission)
+}

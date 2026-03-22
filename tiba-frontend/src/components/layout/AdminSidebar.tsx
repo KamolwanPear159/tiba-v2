@@ -27,8 +27,8 @@ interface NavItem {
 // ─── Menu ─────────────────────────────────────────────────────────────────────
 // Order matches Figma node 1-58246 (screenshot source of truth).
 // รายงาน is fully removed.
-// Disabled items: ตรวจสอบคำสั่งซื้อ, จัดการสมาชิก (+ sub-items), ปฏิทิน (+ sub-items)
-// Disabled sub-item: การชำระเงิน inside ตั้งค่าระบบ
+// Active items: จัดการคำสั่งซื้อ, จัดการสมาชิก (รายการสมาชิก, คำขอสมัครสมาชิกสมาคม, คำขอบัญชีผู้แทนรอง)
+// Disabled items: ปฏิทิน (+ sub-items); Disabled sub-item: การชำระเงิน inside ตั้งค่าระบบ
 
 const navItems: NavItem[] = [
   // ── Active items ────────────────────────────────────────────────────────────
@@ -46,18 +46,19 @@ const navItems: NavItem[] = [
     ],
   },
 
-  // ── Disabled items (show but not clickable, opacity 50%) ────────────────────
+  // ── Orders ───────────────────────────────────────────────────────────────
   {
-    label: 'ตรวจสอบคำสั่งซื้อ', icon: ShoppingCart,
-    href: '/admin/orders', disabled: true,
+    label: 'จัดการคำสั่งซื้อ', icon: ShoppingCart,
+    href: '/admin/orders',
   },
 
+  // ── Members ──────────────────────────────────────────────────────────────
   {
-    label: 'จัดการสมาชิก', icon: Users, disabled: true,
+    label: 'จัดการสมาชิก', icon: Users,
     children: [
-      { href: '/admin/members',       label: 'รายการสมาชิก' },
-      { href: '/admin/registrations', label: 'คำขอลงทะเบียนสมาคม' },
-      { href: '/admin/users',         label: 'คำขอเพิ่มบัญชีผู้แทนรอง' },
+      { href: '/admin/members',            label: 'รายการสมาชิก' },
+      { href: '/admin/registrations',      label: 'คำขอสมัครสมาชิกสมาคม' },
+      { href: '/admin/sub-user-requests',  label: 'คำขอบัญชีผู้แทนรอง' },
     ],
   },
 

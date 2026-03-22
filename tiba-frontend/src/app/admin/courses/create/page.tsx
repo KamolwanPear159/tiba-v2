@@ -2,10 +2,11 @@
 
 import React, { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { ChevronLeft, Plus, Trash2, Upload } from 'lucide-react'
+import { ChevronLeft, Plus, Trash2, Upload, Check } from 'lucide-react'
 import { courseService } from '@/lib/api/services/course.service'
+import { adminService } from '@/lib/api/services/admin.service'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -382,16 +383,81 @@ function Step1Form({
   )
 }
 
+// ─── Tutor Picker ─────────────────────────────────────────────────────────────
+
+function TutorPicker({ selectedIDs, onChange }: { selectedIDs: string[]; onChange: (ids: string[]) => void }) {
+  const { data } = useQuery({
+    queryKey: ['admin-tutors-picker'],
+    queryFn: () => adminService.getTutors({ page: 1, page_size: 200 }),
+  })
+  // Deduplicate by tutor_id to handle any duplicate seed data
+  const allTutors = data?.data ?? []
+  const seen = new Set<string>()
+  const tutors = allTutors.filter(t => { if (seen.has(t.tutor_id)) return false; seen.add(t.tutor_id); return true })
+
+  const toggle = (id: string) => {
+    onChange(selectedIDs.includes(id) ? selectedIDs.filter(x => x !== id) : [...selectedIDs, id])
+  }
+
+  if (tutors.length === 0) {
+    return <p style={{ fontFamily: 'var(--font-thai)', fontSize: 14, color: '#9ca3af', margin: 0 }}>ยังไม่มีผู้สอนในระบบ — กรุณาเพิ่มผู้สอนในเมนู &quot;ผู้สอน&quot; ก่อน</p>
+  }
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
+      {tutors.map(t => {
+        const sel = selectedIDs.includes(t.tutor_id)
+        return (
+          <div
+            key={t.tutor_id}
+            onClick={() => toggle(t.tutor_id)}
+            style={{
+              border: sel ? '2px solid #1f4488' : '1px solid #e5e6f0',
+              borderRadius: 10, padding: '10px 14px', cursor: 'pointer',
+              display: 'flex', gap: 10, alignItems: 'center',
+              backgroundColor: sel ? '#f0f4ff' : '#fff',
+              transition: 'all 0.15s',
+              position: 'relative',
+            }}
+          >
+            {t.photo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={t.photo_url} alt="" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+            ) : (
+              <div style={{ width: 36, height: 36, borderRadius: '50%', backgroundColor: '#e8f0fd', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 13, fontWeight: 700, color: '#1f4488', fontFamily: 'var(--font-thai)' }}>
+                {t.name.charAt(0)}
+              </div>
+            )}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontFamily: 'var(--font-thai)', fontSize: 14, fontWeight: 600, color: '#111827', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</p>
+              <p style={{ fontFamily: 'var(--font-thai)', fontSize: 12, color: '#6b7280', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.position}</p>
+            </div>
+            {sel && (
+              <div style={{ width: 20, height: 20, borderRadius: '50%', backgroundColor: '#1f4488', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Check size={12} color="#fff" strokeWidth={3} />
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 // ─── Step 2 Form ─────────────────────────────────────────────────────────────
 
 function Step2Form({
-  data, onChange, onBack, onSave, isSaving,
+  data, onChange, onBack, onSave, isSaving, selectedTutorIDs, onTutorChange, pendingDocs, onDocsChange,
 }: {
   data: Step2Data
   onChange: (patch: Partial<Step2Data>) => void
   onBack: () => void
   onSave: () => void
   isSaving: boolean
+  selectedTutorIDs: string[]
+  onTutorChange: (ids: string[]) => void
+  pendingDocs: { name: string; file: File }[]
+  onDocsChange: (docs: { name: string; file: File }[]) => void
 }) {
   function addOutcome() {
     if (data.outcomes.length >= 5) return
@@ -508,10 +574,10 @@ function Step2Form({
             {data.scheduleRows.map((row, i) => (
               <tr key={i}>
                 <td style={{ padding: '6px 10px' }}>
-                  <input type="text" value={row.start} onChange={e => updateScheduleRow(i, 'start', e.target.value)} placeholder="ระบุเวลา" style={{ ...inputStyle, width: 120 }} />
+                  <input type="time" value={row.start} onChange={e => updateScheduleRow(i, 'start', e.target.value)} style={{ ...inputStyle, width: 130 }} />
                 </td>
                 <td style={{ padding: '6px 10px' }}>
-                  <input type="text" value={row.end} onChange={e => updateScheduleRow(i, 'end', e.target.value)} placeholder="ระบุเวลา" style={{ ...inputStyle, width: 120 }} />
+                  <input type="time" value={row.end} onChange={e => updateScheduleRow(i, 'end', e.target.value)} style={{ ...inputStyle, width: 130 }} />
                 </td>
                 <td style={{ padding: '6px 10px' }}>
                   <input type="text" value={row.activity} onChange={e => updateScheduleRow(i, 'activity', e.target.value)} placeholder="ระบุกำหนดการ" style={{ ...inputStyle }} />
@@ -561,6 +627,43 @@ function Step2Form({
         </div>
       </div>
 
+      {/* Documents */}
+      <div style={cardStyle}>
+        <p style={sectionTitleStyle}>เอกสารแนบเพิ่มเติม</p>
+        <label style={{ ...labelStyle, color: '#6b7280', fontSize: 15 }}>รายการเอกสาร</label>
+        {pendingDocs.map((doc, i) => (
+          <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 10, alignItems: 'center' }}>
+            <span style={{ width: 28, textAlign: 'center', fontSize: 15, color: '#6b7280', fontFamily: 'var(--font-thai)', flexShrink: 0 }}>{i + 1}</span>
+            <input
+              type="text"
+              value={doc.name}
+              onChange={e => { const arr = [...pendingDocs]; arr[i] = { ...arr[i], name: e.target.value }; onDocsChange(arr) }}
+              placeholder="ชื่อเอกสาร"
+              style={{ ...inputStyle, flex: 1 }}
+            />
+            <span style={{ fontSize: 13, color: '#6b7280', fontFamily: 'var(--font-thai)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }}>{doc.file.name}</span>
+            <button onClick={() => onDocsChange(pendingDocs.filter((_, idx) => idx !== i))} style={{ width: 36, height: 42, border: 'none', borderRadius: 6, backgroundColor: '#fee2e2', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Trash2 size={15} color="#dc2626" />
+            </button>
+          </div>
+        ))}
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: '1px solid #1f4488', backgroundColor: '#fff', fontSize: 15, cursor: 'pointer', fontFamily: 'var(--font-thai)', color: '#1f4488' }}>
+          <Upload size={14} />
+          อัปโหลดเอกสาร
+          <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip" style={{ display: 'none' }} onChange={e => {
+            const file = e.target.files?.[0]
+            if (file) { onDocsChange([...pendingDocs, { name: file.name.replace(/\.[^.]+$/, ''), file }]) }
+            e.target.value = ''
+          }} />
+        </label>
+      </div>
+
+      {/* Tutors */}
+      <div style={{ backgroundColor: '#fff', borderRadius: 12, border: '1px solid #e5e6f0', padding: '24px 28px', marginBottom: 20 }}>
+        <p style={sectionTitleStyle}>ผู้สอน <span style={{ fontSize: 13, fontWeight: 400, color: '#9ca3af' }}>(เลือกได้หลายคน)</span></p>
+        <TutorPicker selectedIDs={selectedTutorIDs} onChange={onTutorChange} />
+      </div>
+
       {/* Footer */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, paddingBottom: 34 }}>
         <button
@@ -582,6 +685,8 @@ function Step2Form({
 export default function CreateCoursePage() {
   const router = useRouter()
   const [step, setStep] = useState<1 | 2>(1)
+  const [selectedTutorIDs, setSelectedTutorIDs] = useState<string[]>([])
+  const [pendingDocs, setPendingDocs] = useState<{ name: string; file: File }[]>([])
 
   const [step1, setStep1] = useState<Step1Data>({
     thumbnail: null,
@@ -635,7 +740,13 @@ export default function CreateCoursePage() {
       if (step1.thumbnail) fd.append('thumbnail', step1.thumbnail)
       return courseService.createCourse(fd)
     },
-    onSuccess: (course) => {
+    onSuccess: async (course) => {
+      if (selectedTutorIDs.length > 0) {
+        await courseService.setCourseTutors(course.course_id, selectedTutorIDs).catch(() => {})
+      }
+      for (const doc of pendingDocs) {
+        await courseService.addDocument(course.course_id, doc.name, doc.file).catch(() => {})
+      }
       toast.success('สร้างคอร์สสำเร็จ')
       router.push(`/admin/courses/${course.course_id}`)
     },
@@ -674,6 +785,10 @@ export default function CreateCoursePage() {
           onBack={() => setStep(1)}
           onSave={() => saveMutation.mutate()}
           isSaving={saveMutation.isPending}
+          selectedTutorIDs={selectedTutorIDs}
+          onTutorChange={setSelectedTutorIDs}
+          pendingDocs={pendingDocs}
+          onDocsChange={setPendingDocs}
         />
       )}
     </div>

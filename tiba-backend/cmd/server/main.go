@@ -10,6 +10,8 @@ import (
 	"github.com/tiba/tiba-backend/internal/repositories"
 	"github.com/tiba/tiba-backend/internal/routes"
 	"github.com/tiba/tiba-backend/internal/services"
+	"github.com/tiba/tiba-backend/pkg/email"
+	"github.com/tiba/tiba-backend/pkg/migrate"
 )
 
 func main() {
@@ -24,6 +26,11 @@ func main() {
 	defer db.Close()
 	log.Println("Database connected successfully")
 
+	// Run migrations before starting the server
+	if err := migrate.Run(db); err != nil {
+		log.Fatalf("Failed to run migrations: %v", err)
+	}
+
 	// Set Gin mode
 	if cfg.Env == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -36,15 +43,27 @@ func main() {
 	contentRepo := repositories.NewContentRepository(db)
 	pbRepo := repositories.NewPriceBenefitRepository(db)
 	enrollRepo := repositories.NewEnrollmentRepository(db)
+	notifRepo := repositories.NewNotificationRepository(db)
+	otpRepo := repositories.NewOTPRepository(db)
+
+	// Initialize email service
+	emailSvc := email.NewService(email.Config{
+		Host:     cfg.SMTPHost,
+		Port:     cfg.SMTPPort,
+		Username: cfg.SMTPEmail,
+		Password: cfg.SMTPPassword,
+		From:     cfg.SMTPEmail,
+	})
 
 	// Initialize services
-	authService := services.NewAuthService(userRepo, assocRepo, cfg)
+	authService := services.NewAuthService(userRepo, assocRepo, otpRepo, emailSvc, cfg)
 	userService := services.NewUserService(userRepo)
 	assocService := services.NewAssociationService(assocRepo, userRepo)
 	courseService := services.NewCourseService(courseRepo)
 	contentService := services.NewContentService(contentRepo)
 	pbService := services.NewPriceBenefitService(pbRepo)
-	enrollService := services.NewEnrollmentService(enrollRepo)
+	enrollService := services.NewEnrollmentService(enrollRepo, notifRepo)
+	notifService := services.NewNotificationService(notifRepo)
 
 	// Initialize controllers
 	authCtrl := controllers.NewAuthController(authService)
@@ -53,13 +72,14 @@ func main() {
 	courseCtrl := controllers.NewCourseController(courseService, cfg)
 	contentCtrl := controllers.NewContentController(contentService, cfg)
 	pbCtrl := controllers.NewPriceBenefitController(pbService)
-	enrollCtrl := controllers.NewEnrollmentController(enrollService)
+	enrollCtrl := controllers.NewEnrollmentController(enrollService, cfg)
+	notifCtrl := controllers.NewNotificationController(notifService)
 
 	// Setup router
 	router := gin.New()
 	router.MaxMultipartMemory = cfg.MaxFileSize
 
-	routes.Setup(router, cfg, authCtrl, userCtrl, assocCtrl, contentCtrl, courseCtrl, pbCtrl, enrollCtrl)
+	routes.Setup(router, cfg, authCtrl, userCtrl, assocCtrl, contentCtrl, courseCtrl, pbCtrl, enrollCtrl, notifCtrl)
 
 	// Start server
 	addr := fmt.Sprintf(":%s", cfg.ServerPort)

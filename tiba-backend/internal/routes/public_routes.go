@@ -17,6 +17,7 @@ func RegisterPublicRoutes(rg *gin.RouterGroup, contentCtrl *controllers.ContentC
 		pub.GET("/statistics", contentCtrl.ListPublicStatistics)
 		pub.GET("/courses", courseCtrl.ListPublicCourses)
 		pub.GET("/courses/:id", courseCtrl.GetPublicCourse)
+		pub.GET("/courses/:id/documents", courseCtrl.ListDocuments)
 		pub.GET("/price-benefits", pbCtrl.ListPublicPlans)
 		pub.GET("/contact", contentCtrl.GetPublicContact)
 		pub.GET("/companies", contentCtrl.ListPublicCompanies)

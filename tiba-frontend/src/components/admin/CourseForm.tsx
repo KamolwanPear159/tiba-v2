@@ -18,6 +18,7 @@ const schema = z.object({
   price_type: z.enum(['single', 'dual']),
   price_general: z.coerce.number().min(0, 'ราคาต้องไม่ติดลบ'),
   price_association: z.coerce.number().optional(),
+  total_hours: z.coerce.number().int().min(0).optional(),
   is_published: z.boolean(),
 })
 
@@ -61,6 +62,7 @@ export default function CourseForm({ course, onSubmit, onCancel, isLoading }: Co
         price_type: course.price_type,
         price_general: course.price_general,
         price_association: course.price_association,
+        total_hours: course.total_hours,
         is_published: course.is_published,
       })
     }
@@ -141,6 +143,15 @@ export default function CourseForm({ course, onSubmit, onCancel, isLoading }: Co
             />
           )}
         </div>
+
+        <Input
+          label="จำนวนชั่วโมง"
+          type="number"
+          placeholder="เช่น 50"
+          hint="จำนวนชั่วโมงอบรมทั้งหมด"
+          error={errors.total_hours?.message}
+          {...register('total_hours')}
+        />
 
         <FileUpload
           label="รูปหน้าปก"

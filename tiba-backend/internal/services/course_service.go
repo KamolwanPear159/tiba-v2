@@ -21,6 +21,10 @@ func (s *CourseService) ListCourses(ctx context.Context, search string, publishe
 	return s.courseRepo.List(ctx, search, publishedOnly, limit, offset)
 }
 
+func (s *CourseService) ListPublicCoursesWithNextSession(ctx context.Context, search string, month, year int, status string, limit, offset int) ([]models.CoursePublicListItem, int64, error) {
+	return s.courseRepo.ListPublicWithNextSession(ctx, search, month, year, status, limit, offset)
+}
+
 func (s *CourseService) GetCourse(ctx context.Context, id string) (*models.Course, error) {
 	return s.courseRepo.FindByID(ctx, id)
 }
@@ -40,6 +44,9 @@ func (s *CourseService) CreateCourse(ctx context.Context, req *models.CreateCour
 	}
 	if req.PriceAssociation != nil {
 		course.PriceAssociation = sql.NullFloat64{Float64: *req.PriceAssociation, Valid: true}
+	}
+	if req.TotalHours != nil {
+		course.TotalHours = sql.NullInt32{Int32: int32(*req.TotalHours), Valid: true}
 	}
 	if err := s.courseRepo.Create(ctx, course); err != nil {
 		return nil, err
@@ -73,6 +80,9 @@ func (s *CourseService) UpdateCourse(ctx context.Context, id string, req *models
 	}
 	if req.PriceAssociation != nil {
 		course.PriceAssociation = sql.NullFloat64{Float64: *req.PriceAssociation, Valid: true}
+	}
+	if req.TotalHours != nil {
+		course.TotalHours = sql.NullInt32{Int32: int32(*req.TotalHours), Valid: true}
 	}
 	if req.IsPublished != nil {
 		course.IsPublished = *req.IsPublished
@@ -196,4 +206,32 @@ func (s *CourseService) GetEnrollmentCalendar(ctx context.Context, month, year i
 
 func (s *CourseService) GetTrainingCalendar(ctx context.Context, month, year int) ([]map[string]interface{}, error) {
 	return s.courseRepo.ListTrainingCalendar(ctx, month, year)
+}
+
+func (s *CourseService) GetCourseTutors(ctx context.Context, courseID string) ([]models.CourseTutor, error) {
+	return s.courseRepo.GetCourseTutors(ctx, courseID)
+}
+
+func (s *CourseService) SetCourseTutors(ctx context.Context, courseID string, tutorIDs []string) error {
+	return s.courseRepo.SetCourseTutors(ctx, courseID, tutorIDs)
+}
+
+func (s *CourseService) ListDocuments(ctx context.Context, courseID string) ([]models.CourseDocument, error) {
+	return s.courseRepo.ListDocuments(ctx, courseID)
+}
+
+func (s *CourseService) AddDocument(ctx context.Context, courseID, name, filePath string, order int) (*models.CourseDocument, error) {
+	return s.courseRepo.AddDocument(ctx, courseID, name, filePath, order)
+}
+
+func (s *CourseService) UpdateDocument(ctx context.Context, id, name string) error {
+	return s.courseRepo.UpdateDocument(ctx, id, name)
+}
+
+func (s *CourseService) DeleteDocument(ctx context.Context, id string) error {
+	return s.courseRepo.DeleteDocument(ctx, id)
+}
+
+func (s *CourseService) GetDocument(ctx context.Context, id string) (*models.CourseDocument, error) {
+	return s.courseRepo.GetDocument(ctx, id)
 }

@@ -32,7 +32,24 @@ func NewCourseController(courseService *services.CourseService, cfg *config.Conf
 func (ctrl *CourseController) ListPublicCourses(c *gin.Context) {
 	p := paginate.Parse(c)
 	search := c.Query("search")
-	courses, total, err := ctrl.courseService.ListCourses(c.Request.Context(), search, true, p.PerPage, p.Offset)
+	status := c.DefaultQuery("status", "all")
+
+	month := 0
+	year := 0
+	if m := c.Query("month"); m != "" {
+		if v, err := strconv.Atoi(m); err == nil {
+			month = v
+		}
+	}
+	if y := c.Query("year"); y != "" {
+		if v, err := strconv.Atoi(y); err == nil {
+			year = v
+		}
+	}
+
+	courses, total, err := ctrl.courseService.ListPublicCoursesWithNextSession(
+		c.Request.Context(), search, month, year, status, p.PerPage, p.Offset,
+	)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
 		return
@@ -54,7 +71,8 @@ func (ctrl *CourseController) GetPublicCourse(c *gin.Context) {
 		return
 	}
 	sessions, _ := ctrl.courseService.ListSessions(c.Request.Context(), id)
-	response.Success(c, http.StatusOK, gin.H{"course": course, "sessions": sessions}, "Course retrieved")
+	tutors, _ := ctrl.courseService.GetCourseTutors(c.Request.Context(), id)
+	response.Success(c, http.StatusOK, gin.H{"course": course, "sessions": sessions, "tutors": tutors}, "Course retrieved")
 }
 
 func (ctrl *CourseController) ListAdminCourses(c *gin.Context) {
@@ -78,13 +96,14 @@ func (ctrl *CourseController) GetAdminCourse(c *gin.Context) {
 		return
 	}
 	sessions, _ := ctrl.courseService.ListSessions(c.Request.Context(), id)
-	response.Success(c, http.StatusOK, gin.H{"course": course, "sessions": sessions}, "Course retrieved")
+	tutors, _ := ctrl.courseService.GetCourseTutors(c.Request.Context(), id)
+	response.Success(c, http.StatusOK, gin.H{"course": course, "sessions": sessions, "tutors": tutors}, "Course retrieved")
 }
 
 func (ctrl *CourseController) CreateCourse(c *gin.Context) {
 	createdBy := c.GetString("user_id")
 	var req models.CreateCourseRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBind(&req); err != nil {
 		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
 		return
 	}
@@ -113,7 +132,7 @@ func (ctrl *CourseController) CreateCourse(c *gin.Context) {
 func (ctrl *CourseController) UpdateCourse(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateCourseRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBind(&req); err != nil {
 		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
 		return
 	}
@@ -264,4 +283,100 @@ func (ctrl *CourseController) GetTrainingCalendar(c *gin.Context) {
 		return
 	}
 	response.Success(c, http.StatusOK, calendar, "Training calendar retrieved")
+}
+
+func (ctrl *CourseController) SetCourseTutors(c *gin.Context) {
+	id := c.Param("id")
+	var req struct {
+		TutorIDs []string `json:"tutor_ids"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
+		return
+	}
+	if req.TutorIDs == nil {
+		req.TutorIDs = []string{}
+	}
+	if err := ctrl.courseService.SetCourseTutors(c.Request.Context(), id, req.TutorIDs); err != nil {
+		response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+		return
+	}
+	response.Success(c, http.StatusOK, nil, "Course tutors updated")
+}
+
+// ─── Course Documents ─────────────────────────────────────────────────────────
+
+func (ctrl *CourseController) ListDocuments(c *gin.Context) {
+	courseID := c.Param("id")
+	docs, err := ctrl.courseService.ListDocuments(c.Request.Context(), courseID)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+		return
+	}
+	response.Success(c, http.StatusOK, docs, "Documents retrieved")
+}
+
+func (ctrl *CourseController) AddDocument(c *gin.Context) {
+	courseID := c.Param("id")
+	name := c.PostForm("name")
+	if name == "" {
+		name = "เอกสาร"
+	}
+
+	filePath, err := upload.SaveFile(c, "file", ctrl.cfg.UploadDir)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "UPLOAD_ERROR", "ไม่พบไฟล์ที่อัปโหลด")
+		return
+	}
+
+	// Count existing docs to set order
+	existing, _ := ctrl.courseService.ListDocuments(c.Request.Context(), courseID)
+	order := len(existing)
+
+	doc, err := ctrl.courseService.AddDocument(c.Request.Context(), courseID, name, filePath, order)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+		return
+	}
+	response.Success(c, http.StatusCreated, doc, "Document added")
+}
+
+func (ctrl *CourseController) UpdateDocument(c *gin.Context) {
+	docID := c.Param("doc_id")
+	var req struct {
+		Name string `json:"name"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
+		return
+	}
+	if err := ctrl.courseService.UpdateDocument(c.Request.Context(), docID, req.Name); err != nil {
+		response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+		return
+	}
+	response.Success(c, http.StatusOK, nil, "Document updated")
+}
+
+func (ctrl *CourseController) DeleteDocument(c *gin.Context) {
+	docID := c.Param("doc_id")
+	if err := ctrl.courseService.DeleteDocument(c.Request.Context(), docID); err != nil {
+		response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+		return
+	}
+	response.Success(c, http.StatusOK, nil, "Document deleted")
+}
+
+func (ctrl *CourseController) UploadThumbnail(c *gin.Context) {
+	id := c.Param("id")
+	path, err := upload.SaveFile(c, "thumbnail", ctrl.cfg.UploadDir)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "UPLOAD_ERROR", "ไม่พบไฟล์ thumbnail")
+		return
+	}
+	if err := ctrl.courseService.SetThumbnail(c.Request.Context(), id, path); err != nil {
+		response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+		return
+	}
+	course, _ := ctrl.courseService.GetCourse(c.Request.Context(), id)
+	response.Success(c, http.StatusOK, course, "Thumbnail updated")
 }

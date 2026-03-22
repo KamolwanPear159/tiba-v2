@@ -169,3 +169,23 @@ func (r *AssociationRepository) UpdateSubUserStatus(ctx context.Context, id, sta
 		status, reviewerID, note, id)
 	return err
 }
+
+// RequestSubMember inserts a new sub-user invitation record for the given main user.
+func (r *AssociationRepository) RequestSubMember(ctx context.Context, mainUserID, invitedEmail, permission string) error {
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO association_sub_users (main_user_id, invited_email, permission, invite_status)
+		 VALUES ($1, $2, $3, 'pending')`,
+		mainUserID, invitedEmail, permission,
+	)
+	return err
+}
+
+// ListSubUsers returns all sub-user records that belong to the given main user.
+func (r *AssociationRepository) ListSubUsers(ctx context.Context, mainUserID string) ([]models.AssociationSubUser, error) {
+	var subs []models.AssociationSubUser
+	err := r.db.SelectContext(ctx, &subs,
+		`SELECT * FROM association_sub_users WHERE main_user_id = $1 ORDER BY created_at DESC`,
+		mainUserID,
+	)
+	return subs, err
+}

@@ -1,5 +1,5 @@
 import client from '../client'
-import type { Course, CourseSession, CalendarEvent, ApiResponse, PaginatedResponse, PaginationParams } from '@/types'
+import type { Course, CourseSession, CourseTutor, CalendarEvent, ApiResponse, PaginatedResponse, PaginationParams, CourseDocument } from '@/types'
 
 function fromNullStr(val: unknown): string | undefined {
   if (typeof val === 'string') return val || undefined
@@ -57,23 +57,56 @@ export const courseService = {
   async getCourse(id: string): Promise<Course> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const res = await client.get<ApiResponse<any>>(`/admin/courses/${id}`)
-    return normalizeCourse(res.data.data)
+    // Backend returns { course, sessions, tutors }
+    const d = res.data.data
+    const tutors = (d.tutors ?? []) as CourseTutor[]
+    const courseData = d.course ?? d
+    return { ...normalizeCourse(courseData), tutors }
   },
 
   async createCourse(data: FormData): Promise<Course> {
+    // Extract JSON fields and thumbnail separately
+    const body: Record<string, unknown> = {}
+    for (const [k, v] of data.entries()) {
+      if (typeof v === 'string') {
+        if (k === 'price_general' || k === 'price_association') body[k] = Number(v)
+        else if (k === 'is_published') body[k] = v === 'true'
+        else body[k] = v
+      }
+    }
+    const thumbnail = data.get('thumbnail') as File | null
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const res = await client.post<ApiResponse<any>>('/admin/courses', data, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
-    return normalizeCourse(res.data.data)
+    const res = await client.post<ApiResponse<any>>('/admin/courses', body)
+    const course = normalizeCourse(res.data.data)
+    if (thumbnail) {
+      const fd = new FormData(); fd.append('thumbnail', thumbnail)
+      await client.post(`/admin/courses/${course.course_id}/thumbnail`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }).catch(() => {})
+    }
+    return course
   },
 
   async updateCourse(id: string, data: FormData): Promise<Course> {
+    const body: Record<string, unknown> = {}
+    for (const [k, v] of data.entries()) {
+      if (typeof v === 'string') {
+        if (k === 'price_general' || k === 'price_association') body[k] = Number(v)
+        else if (k === 'is_published') body[k] = v === 'true'
+        else body[k] = v
+      }
+    }
+    const thumbnail = data.get('thumbnail') as File | null
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const res = await client.put<ApiResponse<any>>(`/admin/courses/${id}`, data, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
-    return normalizeCourse(res.data.data)
+    const res = await client.put<ApiResponse<any>>(`/admin/courses/${id}`, body)
+    const course = normalizeCourse(res.data.data)
+    if (thumbnail) {
+      const fd = new FormData(); fd.append('thumbnail', thumbnail)
+      await client.post(`/admin/courses/${id}/thumbnail`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }).catch(() => {})
+    }
+    return course
   },
 
   async deleteCourse(id: string): Promise<void> {
@@ -116,5 +149,32 @@ export const courseService = {
       params: { month, year },
     })
     return res.data.data
+  },
+
+  async setCourseTutors(courseId: string, tutorIds: string[]): Promise<void> {
+    await client.put(`/admin/courses/${courseId}/tutors`, { tutor_ids: tutorIds })
+  },
+
+  async listDocuments(courseId: string): Promise<CourseDocument[]> {
+    const res = await client.get<ApiResponse<CourseDocument[]>>(`/admin/courses/${courseId}/documents`)
+    return res.data.data ?? []
+  },
+
+  async addDocument(courseId: string, name: string, file: File): Promise<CourseDocument> {
+    const fd = new FormData()
+    fd.append('name', name)
+    fd.append('file', file)
+    const res = await client.post<ApiResponse<CourseDocument>>(`/admin/courses/${courseId}/documents`, fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return res.data.data
+  },
+
+  async updateDocument(courseId: string, docId: string, name: string): Promise<void> {
+    await client.put(`/admin/courses/${courseId}/documents/${docId}`, { name })
+  },
+
+  async deleteDocument(courseId: string, docId: string): Promise<void> {
+    await client.delete(`/admin/courses/${courseId}/documents/${docId}`)
   },
 }

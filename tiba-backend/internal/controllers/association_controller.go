@@ -100,3 +100,30 @@ func (ctrl *AssociationController) AdminUpdateSubUserRequest(c *gin.Context) {
 	}
 	response.Success(c, http.StatusOK, nil, "Sub user request updated")
 }
+
+// RequestSubMember godoc
+// POST /member/sub-member/request
+// Body: { invited_email, permission: "full"|"view_only" }
+// Creates a pending sub-member invitation on behalf of the authenticated association_main user.
+func (ctrl *AssociationController) RequestSubMember(c *gin.Context) {
+	mainUserID := c.GetString("user_id")
+
+	var req struct {
+		InvitedEmail string `json:"invited_email" validate:"required,email"`
+		Permission   string `json:"permission" validate:"required,oneof=full view_only"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
+		return
+	}
+	if err := ctrl.validate.Struct(req); err != nil {
+		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
+		return
+	}
+
+	if err := ctrl.assocService.RequestSubMember(c.Request.Context(), mainUserID, req.InvitedEmail, req.Permission); err != nil {
+		response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+		return
+	}
+	response.Success(c, http.StatusCreated, nil, "Sub-member request submitted successfully")
+}

@@ -19,18 +19,20 @@ const (
 )
 
 type Article struct {
-	ID          string         `db:"id" json:"id"`
-	ArticleType ArticleType    `db:"article_type" json:"article_type"`
-	Title       string         `db:"title" json:"title"`
-	Slug        string         `db:"slug" json:"slug"`
-	Body        string         `db:"body" json:"body"`
+	ID            string         `db:"id" json:"id"`
+	ArticleType   ArticleType    `db:"article_type" json:"article_type"`
+	Title         string         `db:"title" json:"title"`
+	Slug          string         `db:"slug" json:"slug"`
+	Body          string         `db:"body" json:"body"`
 	ThumbnailPath sql.NullString `db:"thumbnail_path" json:"thumbnail_path"`
-	IsPublished bool           `db:"is_published" json:"is_published"`
-	PublishedAt *time.Time     `db:"published_at" json:"published_at"`
-	AuthorID    string         `db:"author_id" json:"author_id"`
-	CreatedAt   time.Time      `db:"created_at" json:"created_at"`
-	UpdatedAt   time.Time      `db:"updated_at" json:"updated_at"`
-	DeletedAt   *time.Time     `db:"deleted_at" json:"deleted_at,omitempty"`
+	IsPublished   bool           `db:"is_published" json:"is_published"`
+	IsPinned      bool           `db:"is_pinned" json:"is_pinned"`
+	ViewCount     int            `db:"view_count" json:"view_count"`
+	PublishedAt   *time.Time     `db:"published_at" json:"published_at"`
+	AuthorID      string         `db:"author_id" json:"author_id"`
+	CreatedAt     time.Time      `db:"created_at" json:"created_at"`
+	UpdatedAt     time.Time      `db:"updated_at" json:"updated_at"`
+	DeletedAt     *time.Time     `db:"deleted_at" json:"deleted_at,omitempty"`
 }
 
 type Banner struct {
@@ -102,6 +104,8 @@ type StatisticsFile struct {
 	PublishedYear *int16         `db:"published_year" json:"published_year"`
 	DisplayOrder  int16          `db:"display_order" json:"display_order"`
 	IsPublished   bool           `db:"is_published" json:"is_published"`
+	ViewCount     int            `db:"view_count" json:"view_count"`
+	DownloadCount int            `db:"download_count" json:"download_count"`
 	UploadedBy    string         `db:"uploaded_by" json:"uploaded_by"`
 	CreatedAt     time.Time      `db:"created_at" json:"created_at"`
 	UpdatedAt     time.Time      `db:"updated_at" json:"updated_at"`
@@ -117,6 +121,31 @@ type ContactInfo struct {
 	LineID      sql.NullString `db:"line_id" json:"line_id"`
 	FacebookURL sql.NullString `db:"facebook_url" json:"facebook_url"`
 	UpdatedAt   time.Time      `db:"updated_at" json:"updated_at"`
+}
+
+// ContactInfoResponse is the JSON-safe version of ContactInfo (plain strings instead of sql.NullString)
+type ContactInfoResponse struct {
+	ID          int       `json:"id"`
+	Address     string    `json:"address"`
+	Phone       string    `json:"phone"`
+	Email       string    `json:"email"`
+	MapEmbedURL string    `json:"map_embed_url"`
+	LineID      string    `json:"line_id"`
+	FacebookURL string    `json:"facebook_url"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+func (c *ContactInfo) ToResponse() *ContactInfoResponse {
+	return &ContactInfoResponse{
+		ID:          c.ID,
+		Address:     c.Address.String,
+		Phone:       c.Phone.String,
+		Email:       c.Email.String,
+		MapEmbedURL: c.MapEmbedURL.String,
+		LineID:      c.LineID.String,
+		FacebookURL: c.FacebookURL.String,
+		UpdatedAt:   c.UpdatedAt,
+	}
 }
 
 type PublicCompany struct {

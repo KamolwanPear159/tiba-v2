@@ -1,204 +1,186 @@
-# TIBA Insurance System v2.0.0
+# TIBA v2 — VPS Deployment Guide
 
-Stack: **Next.js 14** (Frontend) + **Golang** (Backend) + **PostgreSQL** (Database)
-
----
-
-## โครงสร้างโปรเจกต์
-
-```
-tiba-v2/
-├── tiba-backend/     Golang MVC API
-├── tiba-frontend/    Next.js 14 (TypeScript + Tailwind)
-├── docker-compose.yml
-└── README.md
-```
+> Ubuntu VPS · plain Docker (no docker-compose)
+> Stack: **Next.js 18** (Frontend) + **Go 1.21** (Backend) + **PostgreSQL 15** (Database)
 
 ---
 
-## วิธีรัน (2 แบบ)
+## Prerequisites
 
-### แบบที่ 1 — Docker (แนะนำ)
+- Ubuntu 22.04 (or 20.04) VPS
+- At least 2 GB RAM, 20 GB disk
+- Ports **5432**, **8080**, **3000** open in the firewall
 
-ต้องการ: Docker Desktop
+---
+
+## Step 1 — Install Docker
 
 ```bash
-cd C:\Users\Lenovo\Documents\tiba-v2
-docker compose up --build
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+newgrp docker
+docker --version
 ```
-
-รอจนเห็น `Server running on :8080` และ `Ready on http://localhost:3000`
-
-| Service | URL |
-|---------|-----|
-| Frontend (หน้าบ้าน) | http://localhost:3000 |
-| Frontend (หลังบ้าน) | http://localhost:3000/admin |
-| Backend API | http://localhost:8080/api/v1 |
-| Database | localhost:5432 |
 
 ---
 
-### แบบที่ 2 — รันแยก (ถ้าไม่มี Docker)
+## Step 2 — Run PostgreSQL
 
-#### ขั้นตอนที่ 1: PostgreSQL
-สร้าง database ชื่อ `tiba_db` แล้วรัน migration:
 ```bash
-psql -U postgres -d tiba_db -f tiba-backend/migrations/001_init_schema.sql
+docker run -d \
+  --name tiba-db \
+  --restart unless-stopped \
+  -p 5432:5432 \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=<password> \
+  -e POSTGRES_DB=tiba_db \
+  -v /data/postgres:/var/lib/postgresql/data \
+  postgres:15
 ```
 
-#### ขั้นตอนที่ 2: Backend
+Verify healthy:
+
 ```bash
-cd tiba-backend
-copy .env.example .env
-# แก้ .env ให้ตรงกับ DB ของคุณ
-go mod tidy
-go run ./cmd/server/
-# Backend รันที่ http://localhost:8080
+docker exec tiba-db pg_isready -U postgres
 ```
 
-#### ขั้นตอนที่ 3: Frontend
+---
+
+## Step 3 — Clone repositories
+
 ```bash
-cd tiba-frontend
-copy .env.local.example .env.local
-npm install
-npm run dev
-# Frontend รันที่ http://localhost:3000
+git clone https://github.com/KamolwanPear159/tiba-backend
+git clone https://github.com/KamolwanPear159/tiba-frontend
 ```
 
 ---
 
-## Default Credentials
+## Step 4 — Build Docker images
 
-### Admin (หลังบ้าน)
-- URL: http://localhost:3000/admin/login
-- Email: `admin@tiba.co.th`
-- Password: `Admin@1234`
+Replace `<VPS_IP>` with your actual public VPS IP throughout this guide.
 
-### Member (หน้าบ้าน)
-- URL: http://localhost:3000/login
-- สมัครใหม่ได้ที่: http://localhost:3000/register
+```bash
+docker build -t tiba-api:latest ./tiba-backend
 
----
-
-## การใช้งาน Mock Data (ถ้ายัง set up BE ไม่เสร็จ)
-
-แก้ไฟล์ `tiba-frontend/.env.local`:
-```
-NEXT_PUBLIC_USE_MOCK=true
-```
-จากนั้น `npm run dev` — Frontend จะใช้ mock data ทั้งหมด ไม่ต้องรัน Backend
-
----
-
-## สิ่งที่ใช้งานได้จริง (Real API)
-
-| Feature | สถานะ |
-|---------|-------|
-| Admin Login / Logout | ✅ Real |
-| จัดการ News & Blog | ✅ Real |
-| จัดการ Banner | ✅ Real |
-| จัดการ Ads | ✅ Real |
-| จัดการ Partners | ✅ Real |
-| จัดการ Executive Board | ✅ Real |
-| Upload สถิติ PDF | ✅ Real |
-| แก้ข้อมูล Contact | ✅ Real |
-| จัดการ Companies | ✅ Real |
-| จัดการ Price & Benefits | ✅ Real |
-| สร้าง/แก้ Courses | ✅ Real |
-| จัดการ Sessions + Calendar | ✅ Real |
-| Register / Login (member) | ✅ Real |
-| Public pages แสดงข้อมูลจริง | ✅ Real |
-
-## สิ่งที่เป็น Mock (เปิดใช้ phase ถัดไป)
-
-| Feature | สถานะ |
-|---------|-------|
-| Registration approval flow | 🟡 Mock |
-| Course enrollment + payment | 🟡 Mock |
-| Certificate management | 🟡 Mock |
-| Dashboard charts (ข้อมูลจริง) | 🟡 Mock |
-
----
-
-## โครงสร้าง Backend (Golang MVC)
-
-```
-tiba-backend/
-├── cmd/server/main.go        Entry point
-├── internal/
-│   ├── config/               Config + DB connection
-│   ├── models/               DB structs + DTOs
-│   ├── repositories/         SQL queries
-│   ├── services/             Business logic
-│   ├── controllers/          HTTP handlers
-│   ├── middleware/           Auth, Role, CORS, Logger
-│   └── routes/               Route registration
-├── migrations/               SQL migration files
-└── pkg/                      Utilities (jwt, hash, upload, paginate, response)
-```
-
-## โครงสร้าง Frontend (Next.js 14)
-
-```
-tiba-frontend/src/
-├── app/
-│   ├── (public)/             หน้าบ้าน (landing, news, courses, ฯลฯ)
-│   ├── (auth)/               Login + Register
-│   ├── member/               Member zone
-│   └── admin/                Back office
-├── components/
-│   ├── ui/                   Reusable UI components
-│   ├── layout/               Header, Footer, Sidebar
-│   ├── public/               Public page components
-│   └── admin/                Admin page components
-├── lib/
-│   ├── api/                  API services + mock data
-│   ├── hooks/                Custom hooks
-│   └── utils/                Utilities
-└── types/                    TypeScript interfaces
+docker build \
+  --build-arg NEXT_PUBLIC_API_URL=http://<VPS_IP>:8080/api/v1 \
+  -t tiba-frontend:latest \
+  ./tiba-frontend
 ```
 
 ---
 
-## API Documentation
+## Step 5 — Run the Backend
 
-- Swagger UI: ดูไฟล์ `C:\Users\Lenovo\Documents\TIBA_v.0.0.0\swagger.yaml`
-  เปิดที่ https://editor.swagger.io แล้ว import ไฟล์
-- Postman: import `C:\Users\Lenovo\Documents\TIBA_v.0.0.0\TIBA_API.postman_collection.json`
+Migrations apply **automatically** on first startup — no manual SQL needed.
+
+```bash
+docker run -d \
+  --name tiba-api \
+  --restart unless-stopped \
+  -p 8080:8080 \
+  -e DB_HOST=<VPS_IP> \
+  -e DB_PORT=5432 \
+  -e DB_USER=postgres \
+  -e DB_PASSWORD=<password> \
+  -e DB_NAME=tiba_db \
+  -e DB_SSLMODE=disable \
+  -e JWT_SECRET=<long_random_secret> \
+  -e JWT_ACCESS_EXPIRY=8h \
+  -e JWT_REFRESH_EXPIRY=720h \
+  -e ALLOWED_ORIGINS=http://<VPS_IP>:3000 \
+  -e SMTP_EMAIL=myverse2023@gmail.com \
+  -e SMTP_PASSWORD=<gmail_app_password> \
+  -e API_URL=http://<VPS_IP>:8080 \
+  -e UPLOAD_DIR=./uploads \
+  -v /data/uploads:/app/uploads \
+  tiba-api:latest
+```
+
+Verify:
+
+```bash
+docker logs tiba-api --tail 20
+# Expected: "migrate: schema is up to date"
+#           "TIBA Backend v2.0.0 starting on :8080"
+
+curl http://localhost:8080/health
+# {"status":"ok","version":"2.0.0"}
+```
 
 ---
 
-## Environment Variables
+## Step 6 — Run Seed data (first deploy only)
 
-### Backend (.env)
-```
-SERVER_PORT=8080
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=postgres
-DB_PASSWORD=postgres
-DB_NAME=tiba_db
-DB_SSLMODE=disable
-JWT_SECRET=change-this-in-production
-JWT_ACCESS_EXPIRY=15m
-JWT_REFRESH_EXPIRY=720h
-UPLOAD_DIR=./uploads
-MAX_FILE_SIZE=10485760
-ALLOWED_ORIGINS=http://localhost:3000
+```bash
+docker exec \
+  -e DB_HOST=<VPS_IP> \
+  -e DB_PASSWORD=<password> \
+  tiba-api ./seed
 ```
 
-### Frontend (.env.local)
+Creates:
+- Admin: `admin@tiba.co.th` / `password` — **change after first login**
+- Sample tutors, courses, news, contact info, and price plans
+
+---
+
+## Step 7 — Run the Frontend
+
+```bash
+docker run -d \
+  --name tiba-frontend \
+  --restart unless-stopped \
+  -p 3000:3000 \
+  -e NEXT_PUBLIC_API_URL=http://<VPS_IP>:8080/api/v1 \
+  tiba-frontend:latest
 ```
-NEXT_PUBLIC_API_URL=http://localhost:8080/api/v1
-NEXT_PUBLIC_USE_MOCK=false
+
+Open: `http://<VPS_IP>:3000`
+
+---
+
+## Container management
+
+```bash
+docker ps
+docker logs tiba-api      -f --tail 50
+docker logs tiba-frontend -f --tail 50
+docker restart tiba-api
+docker stop tiba-api tiba-frontend tiba-db
 ```
 
 ---
 
-## หมายเหตุสำหรับ Dev Team
+## Update deployment
 
-1. **ไฟล์ที่ upload** จะเก็บที่ `tiba-backend/uploads/` แบ่งเป็น `images/` และ `documents/`
-2. **Admin seed password** `Admin@1234` — เปลี่ยนทันทีหลัง deploy production
-3. **JWT Secret** ต้องเปลี่ยนใน production — ห้ามใช้ค่า default
-4. **Mock mode** ใช้ระหว่าง dev frontend ก่อน backend พร้อม — สลับด้วย `NEXT_PUBLIC_USE_MOCK`
-5. **Database** ต้องรัน `migrations/001_init_schema.sql` ก่อนเริ่มเสมอ
+```bash
+cd tiba-backend  && git pull
+cd ../tiba-frontend && git pull
+
+docker build -t tiba-api:latest ./tiba-backend
+docker build \
+  --build-arg NEXT_PUBLIC_API_URL=http://<VPS_IP>:8080/api/v1 \
+  -t tiba-frontend:latest ./tiba-frontend
+
+docker stop tiba-api     && docker rm tiba-api
+docker stop tiba-frontend && docker rm tiba-frontend
+# Re-run Steps 5 and 7 — migrations re-apply only pending ones
+```
+
+---
+
+## Environment variable reference
+
+See `.env.example` for a complete annotated list.
+
+| Variable | Where | Description |
+|---|---|---|
+| `DB_HOST` | backend | PostgreSQL host (VPS IP) |
+| `DB_PASSWORD` | backend | PostgreSQL password |
+| `JWT_SECRET` | backend | `openssl rand -hex 32` |
+| `SMTP_EMAIL` | backend | Gmail address |
+| `SMTP_PASSWORD` | backend | Gmail App Password |
+| `API_URL` | backend | Public backend URL for email links |
+| `ALLOWED_ORIGINS` | backend | CORS whitelist — frontend origin |
+| `NEXT_PUBLIC_API_URL` | frontend | Backend URL visible to the browser |

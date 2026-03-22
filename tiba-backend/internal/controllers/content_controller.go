@@ -112,7 +112,7 @@ func (ctrl *ContentController) GetPublicContact(c *gin.Context) {
 		response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
 		return
 	}
-	response.Success(c, http.StatusOK, contact, "Contact info retrieved")
+	response.Success(c, http.StatusOK, contact.ToResponse(), "Contact info retrieved")
 }
 
 func (ctrl *ContentController) ListPublicCompanies(c *gin.Context) {
@@ -598,7 +598,7 @@ func (ctrl *ContentController) AdminGetContact(c *gin.Context) {
 		response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
 		return
 	}
-	response.Success(c, http.StatusOK, contact, "Contact info retrieved")
+	response.Success(c, http.StatusOK, contact.ToResponse(), "Contact info retrieved")
 }
 
 func (ctrl *ContentController) AdminUpdateContact(c *gin.Context) {
@@ -612,7 +612,7 @@ func (ctrl *ContentController) AdminUpdateContact(c *gin.Context) {
 		response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
 		return
 	}
-	response.Success(c, http.StatusOK, contact, "Contact info updated")
+	response.Success(c, http.StatusOK, contact.ToResponse(), "Contact info updated")
 }
 
 // ---------- Admin Companies ----------

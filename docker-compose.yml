@@ -33,7 +33,7 @@ services:
       DB_NAME: tiba_db
       DB_SSLMODE: disable
       JWT_SECRET: tiba-secret-key-change-in-production
-      JWT_ACCESS_EXPIRY: 15m
+      JWT_ACCESS_EXPIRY: 8h
       JWT_REFRESH_EXPIRY: 720h
       UPLOAD_DIR: ./uploads
       MAX_FILE_SIZE: 10485760

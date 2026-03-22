@@ -38,6 +38,12 @@ func RegisterAdminRoutes(
 
 		// Orders
 		admin.GET("/orders", enrollCtrl.AdminListOrders)
+		admin.GET("/orders/:id", enrollCtrl.AdminGetOrder)
+		admin.PUT("/orders/:id/confirm", enrollCtrl.AdminConfirmPayment)
+		admin.PUT("/orders/:id/reject", enrollCtrl.AdminRejectPayment)
+
+		// Enrollment certificates
+		admin.POST("/enrollments/:id/certificate", enrollCtrl.AdminIssueCertificate)
 
 		// Registrations (association)
 		admin.GET("/registrations", assocCtrl.AdminListRegistrations)
@@ -126,9 +132,19 @@ func RegisterAdminRoutes(
 		admin.GET("/courses/:id", courseCtrl.GetAdminCourse)
 		admin.PUT("/courses/:id", courseCtrl.UpdateCourse)
 		admin.DELETE("/courses/:id", courseCtrl.DeleteCourse)
+		admin.PUT("/courses/:id/tutors", courseCtrl.SetCourseTutors)
 		admin.PATCH("/courses/:id/status", courseCtrl.UpdateCourseStatus)
 		admin.GET("/courses/:id/sessions", courseCtrl.ListSessions)
 		admin.POST("/courses/:id/sessions", courseCtrl.CreateSession)
+
+		// Course thumbnail
+		admin.POST("/courses/:id/thumbnail", courseCtrl.UploadThumbnail)
+
+		// Course documents
+		admin.GET("/courses/:id/documents", courseCtrl.ListDocuments)
+		admin.POST("/courses/:id/documents", courseCtrl.AddDocument)
+		admin.PUT("/courses/:id/documents/:doc_id", courseCtrl.UpdateDocument)
+		admin.DELETE("/courses/:id/documents/:doc_id", courseCtrl.DeleteDocument)
 
 		// Sessions
 		admin.GET("/sessions/:id", courseCtrl.GetSession)

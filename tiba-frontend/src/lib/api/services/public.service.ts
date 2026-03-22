@@ -1,6 +1,6 @@
 import client from '../client'
 import type {
-  Article, Course, CourseSession, Banner, Partner, Statistic,
+  Article, Course, CourseSession, CourseTutor, Banner, Partner, Statistic,
   ContactInfo, Company, PricePlan, Executive, Ad,
   ApiResponse, PaginatedResponse, PaginationParams
 } from '@/types'
@@ -23,6 +23,33 @@ function fromNullFloat(val: unknown): number | undefined {
   return undefined
 }
 
+function fromNullInt(val: unknown): number | undefined {
+  if (typeof val === 'number') return val
+  if (val && typeof val === 'object' && 'Valid' in val && 'Int32' in val) {
+    const ni = val as { Valid: boolean; Int32: number }
+    return ni.Valid ? ni.Int32 : undefined
+  }
+  return undefined
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function normalizeSession(s: any): CourseSession {
+  return {
+    session_id: s.id ?? s.session_id,
+    course_id: s.course_id,
+    session_label: fromNullStr(s.session_label) ?? '',
+    location: fromNullStr(s.location) ?? '',
+    seat_capacity: s.seat_capacity ?? 0,
+    enrolled_count: s.enrolled_count,
+    enrollment_start: s.enrollment_start,
+    enrollment_end: s.enrollment_end,
+    training_start: s.training_start,
+    training_end: s.training_end,
+    is_cancelled: s.is_cancelled ?? false,
+    created_at: s.created_at,
+  }
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normalizeCourse(c: any): Course {
   return {
@@ -35,8 +62,14 @@ function normalizeCourse(c: any): Course {
     price_general: fromNullFloat(c.price_general) ?? 0,
     price_association: fromNullFloat(c.price_association) ?? c.price_association,
     thumbnail_url: fromNullStr(c.thumbnail_path) ?? fromNullStr(c.thumbnail_url),
+    total_hours: fromNullInt(c.total_hours),
     is_published: c.is_published,
     sessions_count: c.sessions_count,
+    // Enriched next-session fields
+    next_training_start: c.next_training_start ?? undefined,
+    next_training_end: c.next_training_end ?? undefined,
+    next_enrollment_start: c.next_enrollment_start ?? undefined,
+    next_enrollment_end: c.next_enrollment_end ?? undefined,
     created_at: c.created_at,
     updated_at: c.updated_at,
   }
@@ -85,7 +118,7 @@ export const publicService = {
     return res.data.data
   },
 
-  async getCourses(params?: PaginationParams): Promise<PaginatedResponse<Course>> {
+  async getCourses(params?: PaginationParams & { month?: number; year?: number; status?: string }): Promise<PaginatedResponse<Course>> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const res = await client.get<any>('/public/courses', { params })
     const raw = res.data
@@ -100,15 +133,16 @@ export const publicService = {
     }
   },
 
-  async getCourse(id: string): Promise<Course> {
+  async getCourse(id: string): Promise<{ course: Course; sessions: CourseSession[] }> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const res = await client.get<ApiResponse<any>>(`/public/courses/${id}`)
-    return normalizeCourse(res.data.data)
-  },
-
-  async getCourseSessions(courseId: string): Promise<CourseSession[]> {
-    const res = await client.get<ApiResponse<CourseSession[]>>(`/public/courses/${courseId}/sessions`)
-    return res.data.data
+    const d = res.data.data
+    const tutors = (d.tutors ?? []) as CourseTutor[]
+    const courseData = d.course ?? d
+    return {
+      course: { ...normalizeCourse(courseData), tutors },
+      sessions: (d.sessions ?? []).map(normalizeSession),
+    }
   },
 
   async getStatistics(params?: PaginationParams): Promise<PaginatedResponse<Statistic>> {
